@@ -1,0 +1,175 @@
+<html>
+
+    <head>
+
+        <title>Controller web socket demo</title>
+
+		
+		<script type="text/javascript" src="jquery/jquery-1.9.0.min.js"></script>
+
+		
+		<style>
+			.edit-image { display:inline-block;float:left;width:24px;height:24px;background:url('icons.png') no-repeat -113px -34px; }
+			.remove-image { display:inline-block;float:left;width:24px;height:24px;background:url('icons.png') no-repeat -410px -482px; }
+			.commit-image { display:inline-block;float:left;width:24px;height:24px;background:url('icons.png') no-repeat -116px -706px; }
+			.add-image { display:inline-block;float:left;width:24px;height:24px;background:url('icons.png') no-repeat -410px -371px; }
+			h2 { margin-top:50px; }
+			td { padding-left:30px; padding-right:30px;}
+		</style>
+		
+		
+        <script type="text/javascript">
+			
+			
+			// if the location is not set then prompt the user for the ip address
+			var host;
+			if (window.location.host == "") host = prompt("Enter an IP Address to connect to", "10.0.0.63");
+
+			// build uri ------------------------------------------------------------------------------
+			//  should use secure transport?
+			var wsUri = "ws://";
+			if (window.location.protocol == "https:") wsUri = "wss://";
+
+			//  set host
+			if (window.location.host != "") wsUri += window.location.host;
+			else wsUri += host;
+
+			console.log(wsUri);
+			
+			
+			
+			function JnrWebSocket(obj) {
+				this.websocket;
+				this.obj = obj;
+				
+				this.connect = function() {
+					console.log('jnrwebsocket connect to: ' + this.obj.uri);
+					
+					
+					this.websocket = new WebSocket(this.obj.uri);
+					
+					this.websocket.onopen = this.obj.onopen != null ? this.obj.onopen : function(evt) {
+						console.log("Web Socket Connected!");
+					};
+					
+					
+					this.websocket.onmessage = this.obj.onmessage != null ? this.obj.onmessage : function(evt) {
+						console.log("Message Received!  There is not a listener defined!");
+					};
+
+					this.websocket.onclose = this.obj.onclose != null ? this.obj.onclose : function(evt) {
+						console.log("Web Socket Disconnected!");
+						setTimeout(function() { this.connect(); }, 1000);
+					};
+
+					this.websocket.onerror = this.obj.onerror != null ? this.obj.onerror : function(evt) {
+						console.log("Error " + evt.data);
+						this.websocket.close();
+					};
+				}
+			}
+		
+		
+		
+			var start = new Date().getTime();
+			var controller_web_socket = new JnrWebSocket( {
+				uri: wsUri + '?app=3000', 
+				onopen: function(evt) {
+					console.log('connected');
+					
+                    var msg = new Object();
+					msg.Message = 'get-actions';
+										
+					evt.target.send(JSON.stringify(msg));
+				},
+				onmessage: function(evt) {
+					console.log(evt.data);
+					
+					var jobj = jQuery.parseJSON(evt.data);
+					console.log(jobj);
+					
+					
+					if (jobj['Message'] == 'Actions') {
+                        for (var index in jobj['Actions']) {
+							$('body').append('<a href="javascript: void(0);" onclick="executeMacro($(this).html());">' + jobj['macro-names'][index] + '</a><br />');
+						} 
+                    }
+                    
+                    else if (jobj['Message'] == 'macro-list') {
+//						$('body').append(new Date() + ' ' + jobj['Message'] + '   ' + (new Date().getTime() - start) + '<br />');
+						
+						
+						for (var index in jobj['macro-names']) {
+							$('body').append('<a href="javascript: void(0);" onclick="executeMacro($(this).html());">' + jobj['macro-names'][index] + '</a><br />');
+						}
+					}
+				}
+			} );
+			controller_web_socket.connect();
+			
+
+            // -----------------------------------------------------------------------------
+            // Ready
+            // -----------------------------------------------------------------------------
+            $().ready(function () {
+				
+			});
+			
+			
+			function updateItem(item) {
+				if (confirm("Are you sure you want to update: " + item)) {
+					var msg = new Object();
+					msg.Message = 'update-item';
+					msg.Value = item;
+										
+					controller_web_socket.websocket.send(JSON.stringify(msg));
+				}
+			}			
+			
+			
+			function removeItem(item) {
+				if (confirm("Are you sure you want to remove: " + item)) {
+					var msg = new Object();
+					msg.Message = 'remove-item';
+					msg.Value = item;
+										
+					controller_web_socket.websocket.send(JSON.stringify(msg));
+				}
+			}
+		</script>
+
+    </head>
+
+
+    <body>
+		
+		
+		<h2>Devices</h2>
+		<input type="text" size="100" value="auditorium 1 : raw_ethernet 10.0.0.201 9600"><button onclick="updateItem($(this).prev().val()); return false;">Update</button><button onclick="removeItem($(this).prev().prev().val()); return false;">Remove</button><br />
+		<input type="text" size="100" value="auditorium 2 : raw_ethernet 10.0.0.202 9600"><button onclick="updateItem($(this).prev().val()); return false;">Update</button><button onclick="removeItem($(this).prev().prev().val()); return false;">Remove</button><br />
+		<input type="text" size="100" value="auditorium 3 : raw_ethernet 10.0.0.203 9600"><button onclick="updateItem($(this).prev().val()); return false;">Update</button><button onclick="removeItem($(this).prev().prev().val()); return false;">Remove</button><br />
+
+		<h2>Actions</h2>
+		<input type="text" size="100" value="lights high : pulse rout1"><button onclick="updateItem($(this).prev().val()); return false;">Update</button><button onclick="removeItem($(this).prev().prev().val()); return false;">Remove</button><br />
+		<input type="text" size="100" value="lights mid : pulse rout2"><button onclick="updateItem($(this).prev().val()); return false;">Update</button><button onclick="removeItem($(this).prev().prev().val()); return false;">Remove</button><br />
+		<input type="text" size="100" value="lights low : pulse rout3"><button onclick="updateItem($(this).prev().val()); return false;">Update</button><button onclick="removeItem($(this).prev().prev().val()); return false;">Remove</button><br />
+		<input type="text" size="100" value="preshow lock : toggle rout5"><button onclick="updateItem($(this).prev().val()); return false;">Update</button><button onclick="removeItem($(this).prev().prev().val()); return false;">Remove</button><br />
+		<input type="text" size="100" value="lazy1 : wait 1"><button onclick="updateItem($(this).prev().val()); return false;">Update</button><button onclick="removeItem($(this).prev().prev().val()); return false;">Remove</button><br />
+		<input type="text" size="100" value="lazy5 : wait 5"><button onclick="updateItem($(this).prev().val()); return false;">Update</button><button onclick="removeItem($(this).prev().prev().val()); return false;">Remove</button><br />
+		<input type="text" size="100" value="aud1 fire alarm : send &quot;run fire alarm\r\n&quot; to auditorium 1"><button onclick="updateItem($(this).prev().val()); return false;">Update</button><button onclick="removeItem($(this).prev().prev().val()); return false;">Remove</button><br />
+		<input type="text" size="100" value="aud2 fire alarm : send &quot;run fire alarm\r\n&quot; to auditorium 2"><button onclick="updateItem($(this).prev().val()); return false;">Update</button><button onclick="removeItem($(this).prev().prev().val()); return false;">Remove</button><br />
+		
+		<p><div class="edit-image"></div><div class="remove-image"></div>
+		<b>aud3 fire alarm</b> : send &quot;run fire alarm\r\n&quot; to auditorium 3"</p>
+		
+		<p><div class="edit-image" style="top:-2px;"></div><div class="remove-image"></div>
+		<b>aud4 fire alarm</b> : send &quot;run fire alarm\r\n&quot; to auditorium 4"</p>
+		
+		<h2>Triggers</h2>
+		<input type="text" size="100" value="repeater : every 10 seconds do lights high"><button onclick="updateItem($(this).prev().val()); return false;">Update</button><button onclick="removeItem($(this).prev().prev().val()); return false;">Remove</button><br />
+		<input type="text" size="100" value="monitor fire alarm : on din1 do aud1 fire alarm, aud2 fire alarm, aud3 fire alarm"><button onclick="updateItem($(this).prev().val()); return false;">Update</button><button onclick="removeItem($(this).prev().prev().val()); return false;">Remove</button><br />
+
+
+    </body>
+
+</html>
